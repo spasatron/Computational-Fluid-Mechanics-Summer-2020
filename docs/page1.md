@@ -6,7 +6,7 @@ This is going to be the first application of the Runge-Kutta Methods. Starting o
 
 _y' = sin(y)*t_
 
-![Pretty Plots](https://github.com/spasatron/Computational-Fluid-Mechanics-Summer-2020/blob/master/docs/images/monday115progress.png)
+![Pretty Plots](/images/monday115progress.png)
 
 #Dynamics of a Free Falling Sphere (Tuesday)
 
