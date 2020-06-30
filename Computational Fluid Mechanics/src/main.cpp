@@ -1,22 +1,34 @@
+#define _USE_MATH_DEFINES
+#define ITERATION_COUNT 2010
+
+
+
 #include <iostream>
 #include <array>
 #include <fstream>
 #include <math.h>
-
-#define ITERATION_COUNT 101
-
+#include "rungeKutta.h"
 
 
-void rungeKutta4(double w[], double t[], double (*function)(double, double), double h, int itterations);
+
+
 double testFunction(double time, double val);
 void testFunc(double t, double y[], double yp[]);
-void rungeKutta4N(void function(double t, double y[], double yp[]), int numEq, double y[], double t, double h, double k1[], double k2[], double k3[], double k4[], double k5[], double solution[]);
+void problem1_1(double time, double y[], double yp[]);
+double cd(double velocity);
+
 int main() {
 
 
 	double t = 0;
-	double y[2] = { 0, 0 };
+	double y[2];
 	double k1[2], k2[2], k3[2], k4[2], k5[2], sol[2];
+	memset(y, 0, sizeof(k1));
+	memset(k1, 0, sizeof(k1));
+	memset(k2, 0, sizeof(k1));
+	memset(k3, 0, sizeof(k1));
+	memset(k4, 0, sizeof(k1));
+	memset(k5, 0, sizeof(k1));
 
 	//rungeKutta4(y, t, testFunction, .01, ITERATION_COUNT);
 
@@ -24,8 +36,8 @@ int main() {
 	std::ofstream fileManager("dataForPlot.dat");
 	if (!fileManager.fail()) {
 		for (int i = 0; i < ITERATION_COUNT; i++) {
-			fileManager << t << " " << y[0] << std::endl;
-			rungeKutta4N(testFunc, 2, y, t, .01, k1, k2, k3, k4, k5, sol);
+			fileManager << t << " " << y[1] << std::endl;
+			cfd::rungeKutta4N(problem1_1, 2, y, t, .01, k1, k2, k3, k4, k5, sol);
 			t += .01;
 			y[0] = sol[0];
 			y[1] = sol[1];
@@ -37,20 +49,7 @@ int main() {
 
 }
 
-//To Do: Add Functionality for systems of differential equations
-void rungeKutta4(double w[], double t[], double (*function)(double, double), double h, int itterations){
-	double k1, k2, k3, k4;
 
-	for (int i = 0; i < itterations-1; i++) {
-		k1 = h * function(t[i], w[i]);
-		k2 = h * function(t[i] + h / 2, w[i] + k1 / 2);
-		k3 = h * function(t[i] + h / 2, w[i] + k2 / 2);
-		k4 = h * function(t[i] + h, w[i] + k3);
-		w[i+1] = w[i] + (k1 + 2 * k2 + 2 * k3 + k4) / 6;
-		t[i+1] = t[i] + h;
-	}
-
-}
 double testFunction(double time, double val) {
 	return  sin(val) * time;
 }
@@ -62,43 +61,47 @@ void testFunc(double t, double y[], double yp[]) {
 }
 
 
-/*
-	Purpose: rungeKutta4N computes on step of with runge kutta 4th order method in float arithmetic
-	
-	@param function(float, float[], float[]) Function takes the inputs and rewrites over yp[] in order to store the derivative information.
-	@param numEq number of equations in the system
-	@param y[] starting values for y
-	@param t starting time/var
-	@param h step size
-	@param k1[] - k4[] the coeffiecients used to compute the approximation. Primed at the derivative values yp[] on input.
-	@param solution[] OUTPUT ses the output to be the solution after one step
+
+/*Function needed for problem 1.1
+	diameter for ping pong ball is .036m
+	density of water 1000 kg/m^3
+	kv is 1*10^-6 m^2/s
+	density of ball is 1.22 kg/m^3
+
+	Forces:
+
+	Boyant Force: pi*d^3*pf*g/6; (pf = fluid density)
+		
+
 */
+void problem1_1(double t, double y[], double yp[]) {
+	//The derivative of position (y[0]) is velocity y[1]
+	yp[0] = y[1];
 
-void rungeKutta4N(void function(double t, double y[], double yp[]), int numEq, double y[], double t, double h, double k1[], double k2[], double k3[], double k4[], double k5[], double solution[])
-{
-	//Computed the first coefficient k1
-	function(t, y, k1);
-	for (int i = 0; i < numEq; i++) {
-		k5[i] = y[i] + h * k1[i] / 2;
-	}
-	//Compute k2
-	function(t + h/2, k5, k2);
+	const double A = 1 + .5 * 1000 / 1.22;
+	const double B = (1 - 1000 / 1.22) * 9.8; 
+	const double C = 3 * 1000 / (4 * 1.22 * .036);
 
-	for (int i = 0; i < numEq; i++) {
-		k5[i] = y[i] + h * k2[i]/2;
-	}
-	//Compute k3
-	function(t + h/2, k5, k3);
 
-	for (int i = 0; i < numEq; i++) {
-		k5[i] = y[i] + h * k3[i];
-	}
-	//compute k4
-	function(t + h, k5, k4);
 
-	//Ready to compute solution
-	for (int i = 0; i < numEq; i++) {
-		solution[i] = y[i] + h * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]) / 6;
-	}
+
+	//Boyant + force on accelerating body + viscosity forces
+	double f = (-B - C * y[1] * abs(y[1]) * cd(abs(y[1])))/A;
+	yp[1] = f;
 }
 
+
+double cd(double velocity) {
+	double re = velocity * .036 / pow(10, -6);
+	if (re == 0)
+		return 0;
+	if (re <= 1)
+		return 24 / re;
+	if (1 < re && re <= 400)
+		return 24 / pow(re, .646);
+	if (400 < re && re <= 3 * pow(10, 5))
+		return .5;
+	if (3 * pow(10, 5) < re && re <= 2 * pow(10, 6))
+		return .000366 * pow(re, .4275);
+	return .18;
+}
